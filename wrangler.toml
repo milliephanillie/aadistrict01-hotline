@@ -3,9 +3,9 @@ main = "src/worker.js"
 compatibility_date = "2024-11-01"
 
 [vars]
-TWILIO_CALLER_ID = "+19205551234"        # your Twilio number
-DEFAULT_FORWARD_NUMBER = "+12066058551"  # fallback if KV empty
+TWILIO_CALLER_ID = "+19209456032"
+DEFAULT_FORWARD_NUMBER = "+12066058551"
 
 [[kv_namespaces]]
 binding = "HOTLINE_KV"
-id = "your_kv_id_here"
+id = "352172993e66474f8a783e45c06bf89c"
