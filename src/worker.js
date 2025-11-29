@@ -1,3 +1,8 @@
+import schedule from "./schedule.json";
+
+const TIMEZONE = schedule.timezone || "America/Chicago";
+const FORWARD_KEY = "forward_number";
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -9,7 +14,7 @@ export default {
     const digits = params.get("Digits") || "";
 
     const ADMIN_NUMBERS = [
-      "+12066058551",
+      "+12066058551"
     ];
 
     const isAdmin = ADMIN_NUMBERS.includes(from);
@@ -23,11 +28,55 @@ export default {
     }
 
     return handleInitial({ isAdmin, env });
+  },
+
+  // called by cron trigger at 5pm local time
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(updateForwardFromSchedule(env));
   }
 };
 
+async function updateForwardFromSchedule(env) {
+  const now = new Date();
+  const info = getLocalDateInfo(now, TIMEZONE);
+  const nth = Math.floor((info.dayOfMonth - 1) / 7) + 1; // 1–5
+  const weekdayKey = info.weekday.toLowerCase();         // "monday", "tuesday", etc.
+
+  const day = schedule.days.find(d => d.key === weekdayKey);
+  if (!day) {
+    await env.HOTLINE_KV.put(FORWARD_KEY, env.DEFAULT_FORWARD_NUMBER);
+    return;
+  }
+
+  // nth in 1..5 → index nth-1
+  const caller = day.callers[nth - 1] || day.callers[day.callers.length - 1];
+  const phone = caller?.phone || env.DEFAULT_FORWARD_NUMBER;
+
+  await env.HOTLINE_KV.put(FORWARD_KEY, phone);
+}
+
+function getLocalDateInfo(date, timeZone) {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    weekday: "long",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric"
+  });
+
+  const parts = fmt.formatToParts(date);
+  const get = type => parts.find(p => p.type === type)?.value;
+
+  return {
+    weekday: get("weekday"),                  // "Monday"
+    year: parseInt(get("year"), 10),
+    month: parseInt(get("month"), 10),
+    dayOfMonth: parseInt(get("day"), 10)
+  };
+}
+
 async function getForwardNumber(env) {
-  const kvNumber = await env.HOTLINE_KV.get("forward_number");
+  const kvNumber = await env.HOTLINE_KV.get(FORWARD_KEY);
   return kvNumber || env.DEFAULT_FORWARD_NUMBER;
 }
 
@@ -125,7 +174,8 @@ async function handleAdminSetNumber({ isAdmin, digits, env }) {
     return twimlResponse(body);
   }
 
-  await env.HOTLINE_KV.put("forward_number", newNumber);
+  // Manual override until the next 5pm cron overwrites it from the schedule
+  await env.HOTLINE_KV.put(FORWARD_KEY, newNumber);
 
   const body = `
     <Say voice="Polly.Joanna">

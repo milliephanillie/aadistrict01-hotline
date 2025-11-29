@@ -1,0 +1,82 @@
+{
+  "timezone": "America/Chicago",
+  "days": [
+    {
+      "key": "sunday",
+      "name": "Sunday - Serenity Now",
+      "callers": [
+        { "slot": 1, "name": "Doug F",  "phone": "+19205903684", "email": "doug.feck.df@gmail.com" },
+        { "slot": 2, "name": "Sean S",  "phone": "+19204459594", "email": "ssmith1205@gmail.com" },
+        { "slot": 3, "name": "Kevin O", "phone": "+19204911010", "email": "WisconKev@netscape.net" },
+        { "slot": 4, "name": "Mike N",  "phone": "+19202282019", "email": "nvyflyguy@gmail.com" },
+        { "slot": 5, "name": "David N","phone": "+19209443283", "email": "Dave@crazyhomebuyers.com" }
+      ]
+    },
+    {
+      "key": "monday",
+      "name": "Monday - There is a Solution Meeting",
+      "callers": [
+        { "slot": 1, "name": "Bruce K", "phone": "+19204957250", "email": "bruce.knaus@gmail.com" },
+        { "slot": 2, "name": "Mark W",  "phone": "+19202659049", "email": "mwenck57@gmail.com" },
+        { "slot": 3, "name": "Jerry",   "phone": "+19205443345", "email": "futurefloorsgreenbay@gmail.com" },
+        { "slot": 4, "name": "Mike H",  "phone": "+19202179712", "email": "greatlakestrout@gmail.com" },
+        { "slot": 5, "name": "Bill L",  "phone": "+19206196045", "email": "Wlabine@yahoo.com" }
+      ]
+    },
+    {
+      "key": "tuesday",
+      "name": "Tuesday - Never on Sunday",
+      "callers": [
+        { "slot": 1, "name": "John G",  "phone": "+19206062480", "email": "dbgira@aol.com" },
+        { "slot": 2, "name": "Jack A",  "phone": "+19206421121", "email": "Jackkono@aol.com" },
+        { "slot": 3, "name": "Marian K","phone": "+19203665950", "email": "mariankovach@new.rr.com" },
+        { "slot": 4, "name": "Bruce K", "phone": "+19204957250", "email": "bruce.knaus@gmail.com" },
+        { "slot": 5, "name": "Monty J", "phone": "+19206094581", "email": "mjingb68@gmail.com" }
+      ]
+    },
+    {
+      "key": "wednesday",
+      "name": "Wednesday - BYOBB",
+      "callers": [
+        { "slot": 1, "name": "Bob T",   "phone": "+19206617306", "email": "Btorrez310@gmail.com" },
+        { "slot": 2, "name": "Chris P", "phone": "+19204540863", "email": "Pfisterchris7@gmail.com" },
+        { "slot": 3, "name": "Paul K",  "phone": "+19208832353", "email": "kruegerpaul57@gmail.com" },
+        { "slot": 4, "name": "Angela J","phone": "+19202646253", "email": "scottgirla@hotmail.com" },
+        { "slot": 5, "name": "Mark W",  "phone": "+19202659049", "email": "mwenck57@gmail.com" }
+      ]
+    },
+    {
+      "key": "thursday",
+      "name": "Thursday - Early Risers",
+      "callers": [
+        { "slot": 1, "name": "Paul M",  "phone": "+19062417488", "email": "pmarenger1@gmail.com" },
+        { "slot": 2, "name": "Mike H",  "phone": "+19202179712", "email": "greatlakestrout@gmail.com" },
+        { "slot": 3, "name": "David N", "phone": "+19209443283", "email": "Dave@crazyhomebuyers.com" },
+        { "slot": 4, "name": "Marty S", "phone": "+19203660371", "email": "marty.seeman@gmail.com" },
+        { "slot": 5, "name": "Tom Y",   "phone": "+19204713502", "email": "Energytom84@gmail.com" }
+      ]
+    },
+    {
+      "key": "friday",
+      "name": "Friday - Women in the Present",
+      "callers": [
+        { "slot": 1, "name": "Jill V",  "phone": "+19204618486", "email": "jkverhaagh@yahoo.com" },
+        { "slot": 2, "name": "Mary M",  "phone": "+19203018641", "email": "maryjmarks28@gmail.com" },
+        { "slot": 3, "name": "Amy G",   "phone": "+19202461029", "email": "amyeborley@hotmail.com" },
+        { "slot": 4, "name": "Natalie", "phone": "+19206193355", "email": "n.vandeveld@gmail.com" },
+        { "slot": 5, "name": "Philip R","phone": "+12066058551", "email": "philiparudy@gmail.com" }
+      ]
+    },
+    {
+      "key": "saturday",
+      "name": "Saturday - Recovery Crusaders",
+      "callers": [
+        { "slot": 1, "name": "Dave W",  "phone": "+19206424120", "email": "wasdave01@gmail.com" },
+        { "slot": 2, "name": "Mark P",  "phone": "+19206601888", "email": "mdprzyby@yahoo.com" },
+        { "slot": 3, "name": "Janis T", "phone": "+19207373332", "email": "Janistoepel@gmail.com" },
+        { "slot": 4, "name": "Brian B","phone": "+19208195604", "email": "bunster221@sbcglobal.net" },
+        { "slot": 5, "name": "Mike N", "phone": "+19202282019", "email": "nvyflyguy@gmail.com" }
+      ]
+    }
+  ]
+}
