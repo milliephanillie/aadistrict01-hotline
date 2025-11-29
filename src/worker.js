@@ -3,6 +3,10 @@ import schedule from "./schedule.json";
 const TIMEZONE = schedule.timezone || "America/Chicago";
 const FORWARD_KEY = "forward_number";
 
+const ADMIN_NUMBERS = [
+  "+12066058551"
+];
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -12,10 +16,6 @@ export default {
     const params = new URLSearchParams(bodyText || "");
     const from = params.get("From") || "";
     const digits = params.get("Digits") || "";
-
-    const ADMIN_NUMBERS = [
-      "+12066058551"
-    ];
 
     const isAdmin = ADMIN_NUMBERS.includes(from);
 
@@ -30,7 +30,6 @@ export default {
     return handleInitial({ isAdmin, env });
   },
 
-  // called by cron trigger at 5pm local time
   async scheduled(event, env, ctx) {
     ctx.waitUntil(updateForwardFromSchedule(env));
   }
@@ -39,8 +38,7 @@ export default {
 async function updateForwardFromSchedule(env) {
   const now = new Date();
   const info = getLocalDateInfo(now, TIMEZONE);
-  const nth = Math.floor((info.dayOfMonth - 1) / 7) + 1; // 1–5
-  const weekdayKey = info.weekday.toLowerCase();         // "monday", "tuesday", etc.
+  const weekdayKey = info.weekday.toLowerCase();
 
   const day = schedule.days.find(d => d.key === weekdayKey);
   if (!day) {
@@ -48,9 +46,10 @@ async function updateForwardFromSchedule(env) {
     return;
   }
 
-  // nth in 1..5 → index nth-1
+  const nth = Math.floor((info.dayOfMonth - 1) / 7) + 1;
+
   const caller = day.callers[nth - 1] || day.callers[day.callers.length - 1];
-  const phone = caller?.phone || env.DEFAULT_FORWARD_NUMBER;
+  const phone = caller && caller.phone ? caller.phone : env.DEFAULT_FORWARD_NUMBER;
 
   await env.HOTLINE_KV.put(FORWARD_KEY, phone);
 }
@@ -68,7 +67,7 @@ function getLocalDateInfo(date, timeZone) {
   const get = type => parts.find(p => p.type === type)?.value;
 
   return {
-    weekday: get("weekday"),                  // "Monday"
+    weekday: get("weekday"),
     year: parseInt(get("year"), 10),
     month: parseInt(get("month"), 10),
     dayOfMonth: parseInt(get("day"), 10)
@@ -101,19 +100,21 @@ async function handleInitial({ isAdmin, env }) {
   const forwardNumber = await getForwardNumber(env);
 
   if (!isAdmin) {
-    return twimlResponse(hotlineScriptXml(forwardNumber, env.TWILIO_CALLER_ID));
+    return twimlResponse(
+      hotlineScriptXml(forwardNumber, env.TWILIO_CALLER_ID)
+    );
   }
 
   const body = `
     <Gather numDigits="1" action="/menu" method="POST">
       <Say voice="Polly.Joanna">
-        You have reached the Green Bay area Alcoholics Anonymous hotline.
-        If you are calling as a normal caller, press 1.
-        If you are an administrator and would like to change the volunteer forwarding number, press 9.
+        You have reached the Green Bay area Alcoholics Anonymous hotline administrator options.
+        Press 1 to forward this call to the currently scheduled volunteer.
+        Press 9 to temporarily change the number that hotline calls are forwarded to.
       </Say>
     </Gather>
     <Say voice="Polly.Joanna">
-      We did not receive any input. Forwarding your call now.
+      We did not receive any input. Forwarding your call using the current hotline number.
     </Say>
     ${hotlineScriptXml(forwardNumber, env.TWILIO_CALLER_ID)}
   `;
@@ -125,14 +126,16 @@ async function handleMenu({ isAdmin, digits, env }) {
   const forwardNumber = await getForwardNumber(env);
 
   if (!isAdmin) {
-    return twimlResponse(hotlineScriptXml(forwardNumber, env.TWILIO_CALLER_ID));
+    return twimlResponse(
+      hotlineScriptXml(forwardNumber, env.TWILIO_CALLER_ID)
+    );
   }
 
   if (digits === "9") {
     const body = `
       <Gather input="dtmf" finishOnKey="#" action="/admin-set-number" method="POST" timeout="15">
         <Say voice="Polly.Joanna">
-          Please enter the ten digit phone number, including area code, that you would like hotline calls forwarded to. 
+          Please enter the ten digit phone number, including area code, that you would like hotline calls forwarded to.
           When finished, press the pound key.
         </Say>
       </Gather>
@@ -144,19 +147,23 @@ async function handleMenu({ isAdmin, digits, env }) {
     return twimlResponse(body);
   }
 
-  return twimlResponse(hotlineScriptXml(forwardNumber, env.TWILIO_CALLER_ID));
+  return twimlResponse(
+    hotlineScriptXml(forwardNumber, env.TWILIO_CALLER_ID)
+  );
 }
 
 async function handleAdminSetNumber({ isAdmin, digits, env }) {
   const forwardNumberBefore = await getForwardNumber(env);
 
   if (!isAdmin) {
-    return twimlResponse(hotlineScriptXml(forwardNumberBefore, env.TWILIO_CALLER_ID));
+    return twimlResponse(
+      hotlineScriptXml(forwardNumberBefore, env.TWILIO_CALLER_ID)
+    );
   }
 
   const cleaned = digits.replace(/\D/g, "");
-
   let newNumber = null;
+
   if (cleaned.length === 10) {
     newNumber = "+1" + cleaned;
   } else if (cleaned.length === 11 && cleaned.startsWith("1")) {
@@ -174,12 +181,14 @@ async function handleAdminSetNumber({ isAdmin, digits, env }) {
     return twimlResponse(body);
   }
 
-  // Manual override until the next 5pm cron overwrites it from the schedule
   await env.HOTLINE_KV.put(FORWARD_KEY, newNumber);
+
+  const volunteer = findVolunteerByPhone(newNumber);
+  const spokenTarget = volunteer ? volunteer.name : spellOutNumber(cleaned);
 
   const body = `
     <Say voice="Polly.Joanna">
-      Thank you. The hotline will now be forwarded to ${spellOutNumber(cleaned)}.
+      Thank you. The hotline will now be forwarded to ${spokenTarget}.
       Forwarding this call now.
     </Say>
     <Pause length="1"/>
@@ -187,7 +196,24 @@ async function handleAdminSetNumber({ isAdmin, digits, env }) {
       ${newNumber}
     </Dial>
   `;
+
   return twimlResponse(body);
+}
+
+function normalizePhone(phone) {
+  return (phone || "").replace(/\D/g, "");
+}
+
+function findVolunteerByPhone(phone) {
+  const target = normalizePhone(phone);
+  for (const day of schedule.days) {
+    for (const caller of day.callers) {
+      if (normalizePhone(caller.phone) === target) {
+        return caller;
+      }
+    }
+  }
+  return null;
 }
 
 function twimlResponse(bodyXml) {
