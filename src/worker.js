@@ -8,7 +8,7 @@ const ADMIN_NUMBERS = [
 ];
 
 const GREETING_AUDIO_URL =
-  "https://d362unqrwzvzrb.cloudfront.net/Recording%20(4).m4a";
+  "https://d362unqrwzvzrb.cloudfront.net/hotline-greeting.wav";
 
 export default {
   async fetch(request, env, ctx) {
