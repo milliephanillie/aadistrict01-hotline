@@ -7,6 +7,9 @@ const ADMIN_NUMBERS = [
   "+12066058551"
 ];
 
+const GREETING_AUDIO_URL =
+  "https://d362unqrwzvzrb.cloudfront.net/Recording%20(4).m4a";
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -35,22 +38,27 @@ export default {
   }
 };
 
+/* ---------------------------
+   Schedule logic
+---------------------------- */
+
 async function updateForwardFromSchedule(env) {
   const now = new Date();
   const info = getLocalDateInfo(now, TIMEZONE);
   const weekdayKey = info.weekday.toLowerCase();
 
   const day = schedule.days.find(d => d.key === weekdayKey);
+
   if (!day) {
     await env.HOTLINE_KV.put(FORWARD_KEY, env.DEFAULT_FORWARD_NUMBER);
     return;
   }
 
   const nth = Math.floor((info.dayOfMonth - 1) / 7) + 1;
+  const caller =
+    day.callers[nth - 1] || day.callers[day.callers.length - 1];
 
-  const caller = day.callers[nth - 1] || day.callers[day.callers.length - 1];
-  const phone = caller && caller.phone ? caller.phone : env.DEFAULT_FORWARD_NUMBER;
-
+  const phone = caller?.phone || env.DEFAULT_FORWARD_NUMBER;
   await env.HOTLINE_KV.put(FORWARD_KEY, phone);
 }
 
@@ -74,21 +82,17 @@ function getLocalDateInfo(date, timeZone) {
   };
 }
 
+/* ---------------------------
+   Core helpers
+---------------------------- */
+
 async function getForwardNumber(env) {
-  const kvNumber = await env.HOTLINE_KV.get(FORWARD_KEY);
-  return kvNumber || env.DEFAULT_FORWARD_NUMBER;
+  return (await env.HOTLINE_KV.get(FORWARD_KEY)) || env.DEFAULT_FORWARD_NUMBER;
 }
 
-function hotlineScriptXml(forwardNumber, callerId) {
+function publicHotlineXml(forwardNumber, callerId) {
   return `
-    <Say voice="Polly.Joanna">
-      You have reached the Green Bay area Alcoholics Anonymous hotline.
-      Following this message, this call will be forwarded to one of our hotline volunteers who are all members of A A.
-      Our volunteers will be taking your call on their own personal phones and may just answer the phone with a simple hello.
-      If they are unable to answer their phone, you will get their voicemail which may not specifically identify them as a hotline volunteer.
-      Please do leave a message and your number and they will call you back as soon as they can.
-      Thank you for calling the hotline, and please stay on the line while the call is forwarded.
-    </Say>
+    <Play>${GREETING_AUDIO_URL}</Play>
     <Pause length="1"/>
     <Dial callerId="${callerId}" answerOnBridge="true" timeout="25">
       ${forwardNumber}
@@ -96,12 +100,16 @@ function hotlineScriptXml(forwardNumber, callerId) {
   `;
 }
 
+/* ---------------------------
+   Request handlers
+---------------------------- */
+
 async function handleInitial({ isAdmin, env }) {
   const forwardNumber = await getForwardNumber(env);
 
   if (!isAdmin) {
     return twimlResponse(
-      hotlineScriptXml(forwardNumber, env.TWILIO_CALLER_ID)
+      publicHotlineXml(forwardNumber, env.TWILIO_CALLER_ID)
     );
   }
 
@@ -116,7 +124,7 @@ async function handleInitial({ isAdmin, env }) {
     <Say voice="Polly.Joanna">
       We did not receive any input. Forwarding your call using the current hotline number.
     </Say>
-    ${hotlineScriptXml(forwardNumber, env.TWILIO_CALLER_ID)}
+    ${publicHotlineXml(forwardNumber, env.TWILIO_CALLER_ID)}
   `;
 
   return twimlResponse(body);
@@ -127,7 +135,7 @@ async function handleMenu({ isAdmin, digits, env }) {
 
   if (!isAdmin) {
     return twimlResponse(
-      hotlineScriptXml(forwardNumber, env.TWILIO_CALLER_ID)
+      publicHotlineXml(forwardNumber, env.TWILIO_CALLER_ID)
     );
   }
 
@@ -142,13 +150,13 @@ async function handleMenu({ isAdmin, digits, env }) {
       <Say voice="Polly.Joanna">
         We did not receive any input. Returning to the normal hotline flow.
       </Say>
-      ${hotlineScriptXml(forwardNumber, env.TWILIO_CALLER_ID)}
+      ${publicHotlineXml(forwardNumber, env.TWILIO_CALLER_ID)}
     `;
     return twimlResponse(body);
   }
 
   return twimlResponse(
-    hotlineScriptXml(forwardNumber, env.TWILIO_CALLER_ID)
+    publicHotlineXml(forwardNumber, env.TWILIO_CALLER_ID)
   );
 }
 
@@ -157,7 +165,7 @@ async function handleAdminSetNumber({ isAdmin, digits, env }) {
 
   if (!isAdmin) {
     return twimlResponse(
-      hotlineScriptXml(forwardNumberBefore, env.TWILIO_CALLER_ID)
+      publicHotlineXml(forwardNumberBefore, env.TWILIO_CALLER_ID)
     );
   }
 
@@ -171,14 +179,13 @@ async function handleAdminSetNumber({ isAdmin, digits, env }) {
   }
 
   if (!newNumber) {
-    const body = `
+    return twimlResponse(`
       <Say voice="Polly.Joanna">
         The number you entered was not recognized as a valid ten digit North American phone number.
         Keeping the existing forwarding number.
       </Say>
-      ${hotlineScriptXml(forwardNumberBefore, env.TWILIO_CALLER_ID)}
-    `;
-    return twimlResponse(body);
+      ${publicHotlineXml(forwardNumberBefore, env.TWILIO_CALLER_ID)}
+    `);
   }
 
   await env.HOTLINE_KV.put(FORWARD_KEY, newNumber);
@@ -186,7 +193,7 @@ async function handleAdminSetNumber({ isAdmin, digits, env }) {
   const volunteer = findVolunteerByPhone(newNumber);
   const spokenTarget = volunteer ? volunteer.name : spellOutNumber(cleaned);
 
-  const body = `
+  return twimlResponse(`
     <Say voice="Polly.Joanna">
       Thank you. The hotline will now be forwarded to ${spokenTarget}.
       Forwarding this call now.
@@ -195,10 +202,12 @@ async function handleAdminSetNumber({ isAdmin, digits, env }) {
     <Dial callerId="${env.TWILIO_CALLER_ID}" answerOnBridge="true" timeout="25">
       ${newNumber}
     </Dial>
-  `;
-
-  return twimlResponse(body);
+  `);
 }
+
+/* ---------------------------
+   Utilities
+---------------------------- */
 
 function normalizePhone(phone) {
   return (phone || "").replace(/\D/g, "");
