@@ -2,12 +2,11 @@ import schedule from "./schedule.json";
 
 const TIMEZONE = schedule.timezone || "America/Chicago";
 const FORWARD_KEY = "forward_number";
-
-const SHIFT_WEEKDAY = "friday";
 const SHIFT_HOUR = 17; // 5 PM Central
 
 const ADMIN_NUMBERS = [
-  "+12066058551"
+  "+12066058551",
+  "+19202659049",
 ];
 
 const GREETING_AUDIO_URL =
@@ -42,45 +41,36 @@ export default {
 };
 
 /* ---------------------------
-   TIME BASED SHIFT LOGIC
+   TIME-BASED DAY SHIFT LOGIC
 ---------------------------- */
 
-function getLocalNow() {
-  return new Date(new Date().toLocaleString("en-US", { timeZone: TIMEZONE }));
-}
+function getEffectiveDate() {
+  const now = new Date(
+    new Date().toLocaleString("en-US", { timeZone: TIMEZONE })
+  );
 
-function getMostRecentShiftBoundary() {
-  const now = getLocalNow();
-  const day = now.getDay(); // 0 Sun - 6 Sat
-  const fridayIndex = 5;
+  const effective = new Date(now);
 
-  let daysSinceFriday = (day - fridayIndex + 7) % 7;
-
-  let boundary = new Date(now);
-  boundary.setDate(now.getDate() - daysSinceFriday);
-  boundary.setHours(SHIFT_HOUR, 0, 0, 0);
-
-  // If today is Friday but before 5PM, go back one week
-  if (day === fridayIndex && now.getHours() < SHIFT_HOUR) {
-    boundary.setDate(boundary.getDate() - 7);
+  // If before 5 PM, treat as previous calendar day
+  if (now.getHours() < SHIFT_HOUR) {
+    effective.setDate(effective.getDate() - 1);
   }
 
-  return boundary;
-}
-
-function getShiftWeekOfMonth(boundaryDate) {
-  const dayOfMonth = boundaryDate.getDate();
-  return Math.floor((dayOfMonth - 1) / 7);
+  return effective;
 }
 
 function getCurrentAndNextVolunteer() {
-  const boundary = getMostRecentShiftBoundary();
+  const effective = getEffectiveDate();
 
-  const weekdayKey = SHIFT_WEEKDAY;
+  const weekdayKey = effective
+    .toLocaleString("en-US", { weekday: "long" })
+    .toLowerCase();
+
   const day = schedule.days.find(d => d.key === weekdayKey);
   if (!day) return { current: null, next: null };
 
-  const weekIndex = getShiftWeekOfMonth(boundary);
+  const dayOfMonth = effective.getDate();
+  const weekIndex = Math.floor((dayOfMonth - 1) / 7);
 
   const current =
     day.callers[weekIndex] || day.callers[day.callers.length - 1];
