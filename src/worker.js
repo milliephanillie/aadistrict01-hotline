@@ -4,9 +4,11 @@ const TIMEZONE = schedule.timezone || "America/Chicago";
 const FORWARD_KEY = "forward_number";
 const SHIFT_HOUR = 17; // 5 PM Central
 
+// HARD SET TWILIO CALLER ID
+const TWILIO_NUMBER = "+19204322600";
+
 const ADMIN_NUMBERS = [
-  "+12066058551",
-  "+19202659049"
+  "+12066058551"
 ];
 
 const GREETING_AUDIO_URL =
@@ -41,7 +43,7 @@ export default {
 };
 
 /* ---------------------------
-   SHIFT CALCULATION (CORRECT)
+   SHIFT CALCULATION
 ---------------------------- */
 
 function getLocalNow() {
@@ -54,7 +56,6 @@ function getCurrentShiftDate() {
   const now = getLocalNow();
   const current = new Date(now);
 
-  // If before 5PM, still previous day's shift
   if (now.getHours() < SHIFT_HOUR) {
     current.setDate(current.getDate() - 1);
   }
@@ -67,10 +68,8 @@ function getNextShiftDate() {
   const next = new Date(now);
 
   if (now.getHours() < SHIFT_HOUR) {
-    // Next shift starts today at 5PM
     next.setHours(SHIFT_HOUR, 0, 0, 0);
   } else {
-    // Next shift starts tomorrow at 5PM
     next.setDate(next.getDate() + 1);
     next.setHours(SHIFT_HOUR, 0, 0, 0);
   }
@@ -115,11 +114,11 @@ async function getForwardNumber(env) {
   return (await env.HOTLINE_KV.get(FORWARD_KEY)) || env.DEFAULT_FORWARD_NUMBER;
 }
 
-function publicHotlineXml(forwardNumber, callerId) {
+function publicHotlineXml(forwardNumber) {
   return `
     <Play>${GREETING_AUDIO_URL}</Play>
     <Pause length="1"/>
-    <Dial callerId="${callerId}" answerOnBridge="true" timeout="25">
+    <Dial callerId="${TWILIO_NUMBER}" answerOnBridge="true" timeout="25">
       ${forwardNumber}
     </Dial>
   `;
@@ -134,7 +133,7 @@ async function handleInitial({ isAdmin, env }) {
 
   if (!isAdmin) {
     return twimlResponse(
-      publicHotlineXml(forwardNumber, env.TWILIO_CALLER_ID)
+      publicHotlineXml(forwardNumber)
     );
   }
 
@@ -147,7 +146,7 @@ async function handleInitial({ isAdmin, env }) {
         Press 9 to temporarily change the number that hotline calls are forwarded to.
       </Say>
     </Gather>
-    ${publicHotlineXml(forwardNumber, env.TWILIO_CALLER_ID)}
+    ${publicHotlineXml(forwardNumber)}
   `;
 
   return twimlResponse(body);
@@ -158,7 +157,7 @@ async function handleMenu({ isAdmin, digits, env }) {
 
   if (!isAdmin) {
     return twimlResponse(
-      publicHotlineXml(forwardNumber, env.TWILIO_CALLER_ID)
+      publicHotlineXml(forwardNumber)
     );
   }
 
@@ -186,12 +185,12 @@ async function handleMenu({ isAdmin, digits, env }) {
           When finished, press the pound key.
         </Say>
       </Gather>
-      ${publicHotlineXml(forwardNumber, env.TWILIO_CALLER_ID)}
+      ${publicHotlineXml(forwardNumber)}
     `);
   }
 
   return twimlResponse(
-    publicHotlineXml(forwardNumber, env.TWILIO_CALLER_ID)
+    publicHotlineXml(forwardNumber)
   );
 }
 
@@ -204,7 +203,7 @@ async function handleAdminSetNumber({ isAdmin, digits, env }) {
 
   if (!isAdmin) {
     return twimlResponse(
-      publicHotlineXml(forwardNumberBefore, env.TWILIO_CALLER_ID)
+      publicHotlineXml(forwardNumberBefore)
     );
   }
 
@@ -223,7 +222,7 @@ async function handleAdminSetNumber({ isAdmin, digits, env }) {
         The number you entered was not recognized as a valid ten digit North American phone number.
         Keeping the existing forwarding number.
       </Say>
-      ${publicHotlineXml(forwardNumberBefore, env.TWILIO_CALLER_ID)}
+      ${publicHotlineXml(forwardNumberBefore)}
     `);
   }
 
@@ -235,7 +234,7 @@ async function handleAdminSetNumber({ isAdmin, digits, env }) {
       Forwarding this call now.
     </Say>
     <Pause length="1"/>
-    <Dial callerId="${env.TWILIO_CALLER_ID}" answerOnBridge="true" timeout="25">
+    <Dial callerId="${TWILIO_NUMBER}" answerOnBridge="true" timeout="25">
       ${newNumber}
     </Dial>
   `);
