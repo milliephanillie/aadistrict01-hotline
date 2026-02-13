@@ -3,6 +3,9 @@ import schedule from "./schedule.json";
 const TIMEZONE = schedule.timezone || "America/Chicago";
 const FORWARD_KEY = "forward_number";
 
+const SHIFT_WEEKDAY = "friday";
+const SHIFT_HOUR = 17; // 5 PM Central
+
 const ADMIN_NUMBERS = [
   "+12066058551"
 ];
@@ -39,70 +42,59 @@ export default {
 };
 
 /* ---------------------------
-   Schedule logic
+   TIME BASED SHIFT LOGIC
 ---------------------------- */
 
-async function updateForwardFromSchedule(env) {
-  const now = new Date();
-  const info = getLocalDateInfo(now, TIMEZONE);
-  const weekdayKey = info.weekday.toLowerCase();
+function getLocalNow() {
+  return new Date(new Date().toLocaleString("en-US", { timeZone: TIMEZONE }));
+}
 
-  const day = schedule.days.find(d => d.key === weekdayKey);
+function getMostRecentShiftBoundary() {
+  const now = getLocalNow();
+  const day = now.getDay(); // 0 Sun - 6 Sat
+  const fridayIndex = 5;
 
-  if (!day) {
-    await env.HOTLINE_KV.put(FORWARD_KEY, env.DEFAULT_FORWARD_NUMBER);
-    return;
+  let daysSinceFriday = (day - fridayIndex + 7) % 7;
+
+  let boundary = new Date(now);
+  boundary.setDate(now.getDate() - daysSinceFriday);
+  boundary.setHours(SHIFT_HOUR, 0, 0, 0);
+
+  // If today is Friday but before 5PM, go back one week
+  if (day === fridayIndex && now.getHours() < SHIFT_HOUR) {
+    boundary.setDate(boundary.getDate() - 7);
   }
 
-  const nth = Math.floor((info.dayOfMonth - 1) / 7) + 1;
-  const caller =
-    day.callers[nth - 1] || day.callers[day.callers.length - 1];
-
-  const phone = caller?.phone || env.DEFAULT_FORWARD_NUMBER;
-  await env.HOTLINE_KV.put(FORWARD_KEY, phone);
+  return boundary;
 }
 
-function getLocalDateInfo(date, timeZone) {
-  const fmt = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    weekday: "long",
-    year: "numeric",
-    month: "numeric",
-    day: "numeric"
-  });
-
-  const parts = fmt.formatToParts(date);
-  const get = type => parts.find(p => p.type === type)?.value;
-
-  return {
-    weekday: get("weekday"),
-    year: parseInt(get("year"), 10),
-    month: parseInt(get("month"), 10),
-    dayOfMonth: parseInt(get("day"), 10)
-  };
+function getShiftWeekOfMonth(boundaryDate) {
+  const dayOfMonth = boundaryDate.getDate();
+  return Math.floor((dayOfMonth - 1) / 7);
 }
-
-/* ---------------------------
-   NEW: Current + Next Logic
----------------------------- */
 
 function getCurrentAndNextVolunteer() {
-  const now = new Date();
-  const info = getLocalDateInfo(now, TIMEZONE);
-  const weekdayKey = info.weekday.toLowerCase();
+  const boundary = getMostRecentShiftBoundary();
 
+  const weekdayKey = SHIFT_WEEKDAY;
   const day = schedule.days.find(d => d.key === weekdayKey);
   if (!day) return { current: null, next: null };
 
-  const nth = Math.floor((info.dayOfMonth - 1) / 7) + 1;
+  const weekIndex = getShiftWeekOfMonth(boundary);
 
   const current =
-    day.callers[nth - 1] || day.callers[day.callers.length - 1];
+    day.callers[weekIndex] || day.callers[day.callers.length - 1];
 
   const next =
-    day.callers[nth] || day.callers[0];
+    day.callers[weekIndex + 1] || day.callers[0];
 
   return { current, next };
+}
+
+async function updateForwardFromSchedule(env) {
+  const { current } = getCurrentAndNextVolunteer();
+  const phone = current?.phone || env.DEFAULT_FORWARD_NUMBER;
+  await env.HOTLINE_KV.put(FORWARD_KEY, phone);
 }
 
 /* ---------------------------
@@ -141,13 +133,10 @@ async function handleInitial({ isAdmin, env }) {
       <Say voice="Polly.Joanna">
         You have reached the Green Bay area Alcoholics Anonymous hotline administrator options.
         Press 1 to forward this call to the currently scheduled volunteer.
-        Press 2 to hear who is currently on call and who is next.
+        Press 2 to hear who is currently on call and who will be next at the next shift start.
         Press 9 to temporarily change the number that hotline calls are forwarded to.
       </Say>
     </Gather>
-    <Say voice="Polly.Joanna">
-      We did not receive any input. Forwarding your call using the current hotline number.
-    </Say>
     ${publicHotlineXml(forwardNumber, env.TWILIO_CALLER_ID)}
   `;
 
@@ -171,8 +160,8 @@ async function handleMenu({ isAdmin, digits, env }) {
 
     return twimlResponse(`
       <Say voice="Polly.Joanna">
-        The current scheduled volunteer is ${currentName}.
-        The next scheduled volunteer is ${nextName}.
+        The current volunteer on call is ${currentName}.
+        The next volunteer at the next shift start will be ${nextName}.
       </Say>
       <Pause length="1"/>
       <Redirect method="POST">/menu</Redirect>
@@ -180,25 +169,25 @@ async function handleMenu({ isAdmin, digits, env }) {
   }
 
   if (digits === "9") {
-    const body = `
+    return twimlResponse(`
       <Gather input="dtmf" finishOnKey="#" action="/admin-set-number" method="POST" timeout="15">
         <Say voice="Polly.Joanna">
           Please enter the ten digit phone number, including area code, that you would like hotline calls forwarded to.
           When finished, press the pound key.
         </Say>
       </Gather>
-      <Say voice="Polly.Joanna">
-        We did not receive any input. Returning to the normal hotline flow.
-      </Say>
       ${publicHotlineXml(forwardNumber, env.TWILIO_CALLER_ID)}
-    `;
-    return twimlResponse(body);
+    `);
   }
 
   return twimlResponse(
     publicHotlineXml(forwardNumber, env.TWILIO_CALLER_ID)
   );
 }
+
+/* ---------------------------
+   Admin number change
+---------------------------- */
 
 async function handleAdminSetNumber({ isAdmin, digits, env }) {
   const forwardNumberBefore = await getForwardNumber(env);
@@ -230,12 +219,9 @@ async function handleAdminSetNumber({ isAdmin, digits, env }) {
 
   await env.HOTLINE_KV.put(FORWARD_KEY, newNumber);
 
-  const volunteer = findVolunteerByPhone(newNumber);
-  const spokenTarget = volunteer ? volunteer.name : spellOutNumber(cleaned);
-
   return twimlResponse(`
     <Say voice="Polly.Joanna">
-      Thank you. The hotline will now be forwarded to ${spokenTarget}.
+      Thank you. The hotline will now be forwarded to the new number.
       Forwarding this call now.
     </Say>
     <Pause length="1"/>
@@ -249,29 +235,9 @@ async function handleAdminSetNumber({ isAdmin, digits, env }) {
    Utilities
 ---------------------------- */
 
-function normalizePhone(phone) {
-  return (phone || "").replace(/\D/g, "");
-}
-
-function findVolunteerByPhone(phone) {
-  const target = normalizePhone(phone);
-  for (const day of schedule.days) {
-    for (const caller of day.callers) {
-      if (normalizePhone(caller.phone) === target) {
-        return caller;
-      }
-    }
-  }
-  return null;
-}
-
 function twimlResponse(bodyXml) {
   const xml = `<?xml version="1.0" encoding="UTF-8"?><Response>${bodyXml}</Response>`;
   return new Response(xml, {
     headers: { "Content-Type": "text/xml" }
   });
-}
-
-function spellOutNumber(digits) {
-  return digits.split("").join(" ");
 }
