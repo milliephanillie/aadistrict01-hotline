@@ -6,7 +6,7 @@ const SHIFT_HOUR = 17; // 5 PM Central
 
 const ADMIN_NUMBERS = [
   "+12066058551",
-  "+19202659049",
+  "+19202659049"
 ];
 
 const GREETING_AUDIO_URL =
@@ -41,42 +41,62 @@ export default {
 };
 
 /* ---------------------------
-   TIME-BASED DAY SHIFT LOGIC
+   SHIFT CALCULATION (CORRECT)
 ---------------------------- */
 
-function getEffectiveDate() {
-  const now = new Date(
+function getLocalNow() {
+  return new Date(
     new Date().toLocaleString("en-US", { timeZone: TIMEZONE })
   );
-
-  const effective = new Date(now);
-
-  // If before 5 PM, treat as previous calendar day
-  if (now.getHours() < SHIFT_HOUR) {
-    effective.setDate(effective.getDate() - 1);
-  }
-
-  return effective;
 }
 
-function getCurrentAndNextVolunteer() {
-  const effective = getEffectiveDate();
+function getCurrentShiftDate() {
+  const now = getLocalNow();
+  const current = new Date(now);
 
-  const weekdayKey = effective
+  // If before 5PM, still previous day's shift
+  if (now.getHours() < SHIFT_HOUR) {
+    current.setDate(current.getDate() - 1);
+  }
+
+  return current;
+}
+
+function getNextShiftDate() {
+  const now = getLocalNow();
+  const next = new Date(now);
+
+  if (now.getHours() < SHIFT_HOUR) {
+    // Next shift starts today at 5PM
+    next.setHours(SHIFT_HOUR, 0, 0, 0);
+  } else {
+    // Next shift starts tomorrow at 5PM
+    next.setDate(next.getDate() + 1);
+    next.setHours(SHIFT_HOUR, 0, 0, 0);
+  }
+
+  return next;
+}
+
+function getVolunteerForDate(date) {
+  const weekdayKey = date
     .toLocaleString("en-US", { weekday: "long" })
     .toLowerCase();
 
   const day = schedule.days.find(d => d.key === weekdayKey);
-  if (!day) return { current: null, next: null };
+  if (!day) return null;
 
-  const dayOfMonth = effective.getDate();
-  const weekIndex = Math.floor((dayOfMonth - 1) / 7);
+  const weekIndex = Math.floor((date.getDate() - 1) / 7);
 
-  const current =
-    day.callers[weekIndex] || day.callers[day.callers.length - 1];
+  return day.callers[weekIndex] || day.callers[day.callers.length - 1];
+}
 
-  const next =
-    day.callers[weekIndex + 1] || day.callers[0];
+function getCurrentAndNextVolunteer() {
+  const currentDate = getCurrentShiftDate();
+  const nextDate = getNextShiftDate();
+
+  const current = getVolunteerForDate(currentDate);
+  const next = getVolunteerForDate(nextDate);
 
   return { current, next };
 }
