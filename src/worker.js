@@ -83,6 +83,29 @@ function getLocalDateInfo(date, timeZone) {
 }
 
 /* ---------------------------
+   NEW: Current + Next Logic
+---------------------------- */
+
+function getCurrentAndNextVolunteer() {
+  const now = new Date();
+  const info = getLocalDateInfo(now, TIMEZONE);
+  const weekdayKey = info.weekday.toLowerCase();
+
+  const day = schedule.days.find(d => d.key === weekdayKey);
+  if (!day) return { current: null, next: null };
+
+  const nth = Math.floor((info.dayOfMonth - 1) / 7) + 1;
+
+  const current =
+    day.callers[nth - 1] || day.callers[day.callers.length - 1];
+
+  const next =
+    day.callers[nth] || day.callers[0];
+
+  return { current, next };
+}
+
+/* ---------------------------
    Core helpers
 ---------------------------- */
 
@@ -118,6 +141,7 @@ async function handleInitial({ isAdmin, env }) {
       <Say voice="Polly.Joanna">
         You have reached the Green Bay area Alcoholics Anonymous hotline administrator options.
         Press 1 to forward this call to the currently scheduled volunteer.
+        Press 2 to hear who is currently on call and who is next.
         Press 9 to temporarily change the number that hotline calls are forwarded to.
       </Say>
     </Gather>
@@ -137,6 +161,22 @@ async function handleMenu({ isAdmin, digits, env }) {
     return twimlResponse(
       publicHotlineXml(forwardNumber, env.TWILIO_CALLER_ID)
     );
+  }
+
+  if (digits === "2") {
+    const { current, next } = getCurrentAndNextVolunteer();
+
+    const currentName = current?.name || "No volunteer scheduled";
+    const nextName = next?.name || "No volunteer scheduled";
+
+    return twimlResponse(`
+      <Say voice="Polly.Joanna">
+        The current scheduled volunteer is ${currentName}.
+        The next scheduled volunteer is ${nextName}.
+      </Say>
+      <Pause length="1"/>
+      <Redirect method="POST">/menu</Redirect>
+    `);
   }
 
   if (digits === "9") {
