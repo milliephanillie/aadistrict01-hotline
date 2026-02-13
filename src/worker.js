@@ -8,7 +8,8 @@ const SHIFT_HOUR = 17; // 5 PM Central
 const TWILIO_NUMBER = "+19204322600";
 
 const ADMIN_NUMBERS = [
-  "+12066058551"
+  "+12066058551",
+  "+19202659049"
 ];
 
 const GREETING_AUDIO_URL =
