@@ -38,11 +38,11 @@
       "key": "wednesday",
       "name": "Wednesday - BYOBB",
       "callers": [
-        { "slot": 1, "name": "Mark W",   "phone": "+19202659049", "email": "mwenck57@gmail.com" },
+        { "slot": 1, "name": "Philip R",   "phone": "+12066058551", "email": "philiparudy@gmail.com" },
         { "slot": 2, "name": "Chris P",  "phone": "+19204540863", "email": "Pfisterchris7@gmail.com" },
         { "slot": 3, "name": "Paul K",   "phone": "+19208832353", "email": "kruegerpaul57@gmail.com" },
         { "slot": 4, "name": "Angela J", "phone": "+19202646253", "email": "scottgirla@hotmail.com" },
-        { "slot": 5, "name": "Mark W",   "phone": "+19202659049", "email": "mwenck57@gmail.com" }
+        { "slot": 5, "name": "Philip R",   "phone": "+12066058551", "email": "philiparudy@gmail.com" }
       ]
     },
     {
@@ -61,7 +61,7 @@
       "name": "Friday - Women in the Present",
       "callers": [
         { "slot": 1, "name": "Jill V",     "phone": "+19204618486", "email": "jkverhaagh@yahoo.com" },
-        { "slot": 2, "name": "Mary M",     "phone": "+19203018641", "email": "maryjmarks28@gmail.com" },
+        { "slot": 2, "name": "Kathy H",     "phone": "+19206199200", "email": "kathy-haines@msn.com" },
         { "slot": 3, "name": "Amy G",      "phone": "+19202461029", "email": "amyeborley@hotmail.com" },
         { "slot": 4, "name": "Natalie V",  "phone": "+19206193355", "email": "n.vandeveld@gmail.com" },
         { "slot": 5, "name": "Philip R",   "phone": "+12066058551", "email": "philiparudy@gmail.com" }
