@@ -1,4 +1,5 @@
 import schedule from "./schedule.json";
+import speakerSchedule from "./speakers.json";
 
 const TIMEZONE = schedule.timezone || "America/Chicago";
 const FORWARD_KEY = "forward_number";
@@ -238,6 +239,57 @@ function getNextShiftDate() {
   }
 
   return nextShiftDate;
+}
+
+function getLocalDateKey(date = new Date()) {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  });
+
+  return formatter.format(date);
+}
+
+function formatSpeakerDate(dateString) {
+  const speakerDate = new Date(`${dateString}T00:00:00`);
+
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: TIMEZONE,
+    weekday: "short",
+    month: "short",
+    day: "numeric"
+  }).format(speakerDate);
+}
+
+function getUpcomingSpeakers(limit = 5) {
+  const todayKey = getLocalDateKey(getLocalNow());
+  const entries = Array.isArray(speakerSchedule.speakers)
+    ? speakerSchedule.speakers
+    : [];
+
+  return entries
+    .filter(entry => entry.date >= todayKey)
+    .slice(0, limit);
+}
+
+function getSpeakersResponse() {
+  const upcomingSpeakers = getUpcomingSpeakers();
+
+  if (upcomingSpeakers.length === 0) {
+    return `Green Bay AA upcoming speakers: No upcoming speakers are scheduled right now. For more information visit ${SPEAKERS_URL}`;
+  }
+
+  const lines = upcomingSpeakers.map(
+    entry => `${formatSpeakerDate(entry.date)}: ${entry.speaker}`
+  );
+
+  return [
+    "Green Bay AA upcoming speakers:",
+    ...lines,
+    "Reply STOP to opt out or HELP for help."
+  ].join("\n");
 }
 
 function getVolunteerForDate(date) {
@@ -679,7 +731,7 @@ function getKeywordResponse(keyword) {
       return `Green Bay AA event information: View upcoming AA District 01 events at ${EVENTS_URL} Reply STOP to opt out or HELP for help.`;
 
     case "SPEAKERS":
-      return `Green Bay AA speaker information: View upcoming speakers and speaking opportunities at ${SPEAKERS_URL} Reply STOP to opt out or HELP for help.`;
+      return getSpeakersResponse();
 
     default:
       return "";
