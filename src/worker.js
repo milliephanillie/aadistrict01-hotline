@@ -253,14 +253,37 @@ function getLocalDateKey(date = new Date()) {
 }
 
 function formatSpeakerDate(dateString) {
-  const speakerDate = new Date(`${dateString}T00:00:00`);
+  const [year, month, day] = dateString
+    .split("-")
+    .map(Number);
+  const speakerDate = new Date(
+    Date.UTC(year, month - 1, day)
+  );
+  const weekdayNames = [
+    "Sun",
+    "Mon",
+    "Tue",
+    "Wed",
+    "Thu",
+    "Fri",
+    "Sat"
+  ];
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec"
+  ];
 
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: TIMEZONE,
-    weekday: "short",
-    month: "short",
-    day: "numeric"
-  }).format(speakerDate);
+  return `${weekdayNames[speakerDate.getUTCDay()]}, ${monthNames[month - 1]} ${day}`;
 }
 
 function getUpcomingSpeakers(limit = 5) {
