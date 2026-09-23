@@ -338,12 +338,71 @@ function getVolunteerForDate(date) {
     (date.getDate() - 1) / 7
   );
 
-  return (
+  const weekEntry =
     daySchedule.callers[weekIndex] ||
     daySchedule.callers[
       daySchedule.callers.length - 1
-    ]
+    ];
+
+  return resolveShiftVolunteer(
+    weekEntry,
+    date
   );
+}
+
+/*
+ * A week entry is either a single all-day caller, or a "shifts" array
+ * that splits that day's on-call window into smaller time blocks.
+ */
+function resolveShiftVolunteer(weekEntry, date) {
+  if (!weekEntry) {
+    return null;
+  }
+
+  if (
+    !Array.isArray(weekEntry.shifts) ||
+    weekEntry.shifts.length === 0
+  ) {
+    return weekEntry;
+  }
+
+  const activeShift = weekEntry.shifts.find(
+    shift => isWithinShift(date, shift)
+  );
+
+  return activeShift || weekEntry.shifts[0];
+}
+
+function isWithinShift(date, shift) {
+  const currentMinutes =
+    date.getHours() * 60 + date.getMinutes();
+  const startMinutes = parseTimeToMinutes(shift.start);
+  const endMinutes = parseTimeToMinutes(shift.end);
+
+  if (startMinutes === endMinutes) {
+    return true;
+  }
+
+  if (startMinutes < endMinutes) {
+    return (
+      currentMinutes >= startMinutes &&
+      currentMinutes < endMinutes
+    );
+  }
+
+  // Shift wraps past midnight (e.g. 17:00 to 05:00)
+  return (
+    currentMinutes >= startMinutes ||
+    currentMinutes < endMinutes
+  );
+}
+
+function parseTimeToMinutes(timeString) {
+  const [hours, minutes] = timeString
+    .split(":")
+    .map(Number);
+
+  return hours * 60 + minutes;
 }
 
 function getCurrentAndNextVolunteer() {

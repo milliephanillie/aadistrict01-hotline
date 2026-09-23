@@ -71,7 +71,13 @@
       "key": "saturday",
       "name": "Saturday - Recovery Crusaders",
       "callers": [
-        { "slot": 1, "name": "Bob T",    "phone": "+19206617306", "email": "Btorrez310@gmail.com" },
+        {
+          "slot": 1,
+          "shifts": [
+            { "start": "17:00", "end": "05:00", "name": "Angela J", "phone": "+19202646253", "email": "scottgirla@hotmail.com" },
+            { "start": "05:00", "end": "17:00", "name": "Bob T",    "phone": "+19206617306", "email": "Btorrez310@gmail.com" }
+          ]
+        },
         { "slot": 2, "name": "Mark P",   "phone": "+19206601888", "email": "mdprzyby@yahoo.com" },
         { "slot": 3, "name": "Janis T",  "phone": "+19207373332", "email": "janistoepel@gmail.com" },
         { "slot": 4, "name": "Brian B",  "phone": "+19208195604", "email": "bunster221@sbcglobal.net" },
